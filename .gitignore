@@ -1,0 +1,15 @@
+# secrets / cluster access — NEVER commit these
+*.kubeconfig
+kubeconfig
+admin.conf
+join-command.txt
+*.key
+*.crt
+*.pem
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
