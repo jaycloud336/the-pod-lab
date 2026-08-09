@@ -25,7 +25,7 @@ So I made a deliberate choice: full upstream Kubernetes, bootstrapped with `kube
 
 That decision paid off in a few concrete ways:
 
-This cluster became the environment where I earned my **CKA, CKAD, and CKS** certifications. Drilling on a cluster you built yourself — one you've already broken and repaired a dozen times — teaches you things no practice question can.
+This cluster became the environment where I studied for my Kubernetes certifications. Drilling on a cluster you built yourself — one you've already broken and repaired a dozen times — teaches you things no practice question can.
 
 It's also my personal and professional proving ground. When I want to learn a new skill or test a hypothesis that's relevant to my job, I try it here first. I prove the theory and break things safely at home before I'd ever attempt them on a real cluster at work. The blast radius is my own hardware and nothing more. To be explicit about it: *nothing proprietary from work ever touches this lab.* It's for transferable skills and general technique, not for replicating anything confidential.
 
@@ -339,61 +339,38 @@ The point: the omissions are deliberate, not accidental.
 
 ## Roadmap
 
-Planned, not yet built. Each lands as its own Updates entry.
+Planned work, grouped by how near-term it is. Ticked off as it lands, with a matching entry added to the yearly Updates journal.
 
+### Next up
+- [ ] **Cluster rebuild to a current version** — rather than grinding through sequential in-place upgrades from v1.29.15 across many minor releases, I'm planning a clean `kubeadm reset` and re-init at a current version. With no valuable workloads to preserve, a rebuild is faster and cleaner than the long chain of staged node-upgrade operations — a deliberate call about when a rebuild beats an upgrade.
+- [ ] **Monitoring** — Prometheus / Grafana via the **kube-prometheus-stack** Helm chart (with `metrics-server` as the minimal first step for `kubectl top` and HPA). The main thing standing between "simulates production" and something I'd more honestly call production-grade — and it doubles as the cert-expiry alerting the recovery taught me I need.
 - [ ] **MetalLB** — bare-metal `LoadBalancer` support (planned pool `192.168.86.200–210`). This closes the loop on the exact `LoadBalancer` limitation that pushed me toward bare metal in the first place.
-- [ ] **Monitoring** — Prometheus / Grafana. The main thing standing between "simulates production" and something I'd more honestly call production-grade.
-- [ ] **Cluster upgrade** — move off v1.29.15 toward a current release, practicing the real upgrade path.
-- [ ] **ArgoCD / GitOps** — declarative, Git-driven delivery.
-- [ ] **Ingress + TLS** — an ingress controller with cert-manager.
+
+### Exploring / experimental
+- [ ] **Experiment with 1.36** — Kubernetes 1.36 ("Haru," the first release of 2026) is out, and it's tempting for security reasons — notably User Namespaces reaching GA, which is squarely relevant to the CKS material this lab is built around. I likely won't make it the cluster's main version right away, but I want to experiment with it, probably in a throwaway sandbox, before deciding whether it earns a place in the real rebuild.
 - [ ] **Talos exploration** — evaluate Talos Linux as an immutable, API-driven OS on a future rebuild.
 
+### Later
+- [ ] **ArgoCD / GitOps** — declarative, Git-driven delivery.
+- [ ] **Ingress + TLS** — an ingress controller with cert-manager.
+
 ---
+
 ## Updates
 
-### 2026-08 — CKS (Certified Kubernetes Security Specialist)
+A dated journal of the lab's evolution, grouped by year (newest first).
 
-Passed the CKS right around the same window as the big recovery below — which felt fitting, since the recovery was itself a security-and-hardening exercise. Everything the exam drills (cluster hardening, network policy, minimizing attack surface, cert management) is exactly the kind of thing this bare-metal cluster lets you practice for real rather than in a sandbox. The last of the five, and the one this lab was most directly built for.
+### [2026 →](docs/updates/2026.md)
+- **2026-08 — CKS** — passed the security specialist exam, alongside the recovery below.
+- **2026-08 — The 3D-printed cluster case** — gave the three nodes a proper 5U rack.
+- **2026-08 — Recovery from an extended outage** — diagnosed a four-layer cascading failure bottom-up and hardened against recurrence. The best troubleshooting story the lab has produced.
+- **2026-06 — CKAD** — the application-developer cert.
 
-### 2026-08 — The 3D-printed cluster case
-
-For a long time the lab was just bare thin clients and a switch sitting out. Eventually I gave it a proper home. I purchased a 5U 3D-printed Stackable Mini Server Homelab Rack to organize the three nodes, tidy the cabling, and add new networking hardware.
-
-![alt text](docs/images/homelab-rack1.jpg)
-
-![alt text](docs/images/rack-shelf.webp)
-
-![alt text](docs/images/rack-shelf1.webp)
-
-![alt text](docs/images/homelab-rack2.jpg)
-
-### 2026-08 — Recovery from an extended outage
-
-After a long planned downtime — during which I installed the 3D-printed rack, a new switch, and a new power source — the cluster came back to a cascade of failures stacked on top of each other: a NIC that had lost carrier (a loose cable after the hardware move), kubeadm certificates that had hit their one-year expiry, swap silently re-enabled on all three nodes after a reboot, and a kubeconfig endpoint mismatch. This entry will document diagnosing it bottom-up — layer 1, then IP, then certs, then services — and the hardening that followed: authoritative static netplan configs, disabled cloud-init network management, and permanent swap-off. It's the best troubleshooting story the lab has produced so far.
-
-![alt text](docs/images/kgetnodes.png)
-
-### 2026-06 — CKAD (Certified Kubernetes Application Developer)
-
-Passed the CKAD in June. After the cluster had sat through an extended downtime, getting back into application-workload drills — deployments, config, jobs, probes, the day-to-day developer surface of Kubernetes — was a good way to knock the rust off before the bigger recovery and hardening work later in the summer.
-
-### 2025-10 — KCSA (Kubernetes and Cloud Native Security Associate)
-
-Passed the KCSA in late October. The associate-level security exam — threat models, the 4Cs, the foundational security concepts that the CKS later builds on. A natural next step on the cluster after the two summer exams.
-
-### 2025-08 — KCNA (Kubernetes and Cloud Native Associate)
-
-Passed the KCNA in August, right around the time this cluster came together. The foundational cloud-native exam — good confirmation that the fundamentals were solid as I moved from building the cluster to running real workloads on it.
-
-### 2025-08 — Founding build: the three-node kubeadm cluster
-
-Where it all started. Three used HP EliteDesk 800 G2 Mini thin clients, a switch, and a deliberate decision to build full Kubernetes the harder-but-more-honest way instead of reaching for k3s or Docker Desktop.
-
-It was a long, fiddly process, and I got plenty wrong on the first pass — the Ubuntu installer's split address/subnet fields, forgetting the apt source list before `apt update`, skipping the containerd cgroup edit once, and the Docker Desktop kubeconfig context ambush at the very end. Every one of those is written up in detail in the build stages above, mistakes and all, because those are the parts worth remembering. Landed on Kubernetes **v1.29.15**, all three nodes `Ready`. This cluster became my study ground — the place I drilled for the Kubernetes certifications on real bare metal instead of in a limited sandbox.
-
-### 2025-07 — CKA (Certified Kubernetes Administrator)
-
-The one that started the certification push, passed in July. Earned on my earlier lab setup — the used-laptop and Docker Desktop labs that came before this cluster. Hitting the ceilings of those setups while studying for the CKA is a big part of *why* I went on to build this bare-metal cluster: I wanted an environment that exposed the real administration surface instead of hiding it.
+### [2025 →](docs/updates/2025.md)
+- **2025-10 — KCSA** — cloud native security associate.
+- **2025-08 — KCNA** — cloud native associate.
+- **2025-08 — Founding build** — the three-node kubeadm cluster came together.
+- **2025-07 — CKA** — the administrator cert, earned on the earlier lab that led to this one.
 
 ---
 
