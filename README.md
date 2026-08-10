@@ -35,31 +35,31 @@ And while this was hard to build, it is **not** on par with Kelsey Hightower's *
 
 ---
 ![alt text](docs/images/homelab-rack.jpg)
+
 ## Hardware
 
-### The thesis: *a real cluster without a real budget*
+One of the points I wanted to emphasize with this repo to make is that you do **not** need to spend a lot of money to build a legitimate Kubernetes cluster. 
+The three nodes were all used enterprise gear, and the switch and cables I bought new — they were cheap enough that paying for new-and-problem-free was the easy call. The whole thing came to roughly $250–375, and it runs full upstream Kubernetes. A home lab doesn't equire a rack of new hardware. Just search for the right used gear at the right price.
 
-One of the quiet points I want this repo to make is that you do **not** need to spend a lot of money to build a legitimate, production-shaped Kubernetes cluster. The whole three-node lab was assembled from used enterprise gear for roughly **$250–375 all in** , and it runs full upstream Kubernetes with room to spare. People assume a "serious" home lab means a rack of new hardware or a fat cloud bill. It doesn't. It means buying the right used gear and knowing what to look for.
+### Used enterprise thin clients
 
-### Why used enterprise thin clients (*and not Pis, and not new*)
+I commonly purchase used-laptops, so buying used again was normal, however this time I wanted something closer to an actual server, and I weighed a few options:
 
-I came into this from a lineage of used-laptop labs, so buying used again was natural — but this time I wanted something closer to an actual server, and I weighed a few options:
+While Raspberry Pis are often the default home-lab suggestion, and I passed on them deliberately. I wanted *x86_64*, not ARM, so the environment matches the real servers I'd use at work. I wanted *real SSD storage*, not an SD card that wears out and corrupts under a cluster's constant small writes. And I wanted enough RAM to run a genuine control plane plus workloads without babying it. By the time you add a decent Pi, a quality SD card or SSD hat, a case, and a PSU, the "cheap" Pi cluster isn't as cheap as it looks — and you still don't have x86.
 
-**Raspberry Pis** are often the default home-lab suggestion, and I passed on them deliberately. I wanted **x86_64**, not ARM, so the environment matches the real servers I'd hit at work and on the exams. I wanted **real SSD storage**, not an SD card that wears out and corrupts under a cluster's constant small writes. And I wanted enough **RAM headroom** to run a genuine control plane plus workloads without babying it. By the time you add a decent Pi, a quality SD card or SSD hat, a case, and a PSU, the "cheap" Pi cluster isn't as cheap as it looks — and you still don't have x86.
+New mini PCs would've solved the architecture problem but blown the budget thesis. There was no reason to pay new-hardware prices for a lab whose entire point is simply learn, expermient & practice.
 
-**New mini PCs** would've solved the architecture problem but blown the budget thesis. There was no reason to pay new-hardware prices for a lab whose entire point is to be broken and rebuilt.
-
-**Used enterprise thin clients** hit every requirement at once: x86_64, proper storage, upgradeable RAM, and dirt-cheap because businesses offload them by the pallet on their refresh cycles. That corporate-surplus flood is exactly what makes them such a bargain — you're buying gear built for reliability, priced like scrap.
+Used enterprise thin clients hit every requirement at once: x86_64, proper storage, upgradeable RAM, and dirt-cheap because businesses offload them by the pallet on their refresh cycles. That corporate-surplus flood is exactly what makes them such a bargain — you're buying gear built for reliability, priced like scrap.
 
 ### Sourcing: *The eBay hunt*
 
 I sourced the nodes on **eBay**, which is the sweet spot for corporate-surplus small-form-factor machines. A few things I learned to look for, which I'd pass on to anyone doing the same:
 
-- **Buy the same model across all nodes.** Identical hardware means identical setup — one process, one interface name (`eno1`), no per-node surprises. Mixed hardware is how you end up debugging why one worker behaves differently from the others.
+- **Buy the same model across all nodes.** Identical hardware means identical setup — one process, one interface name (ex: `eno1`), no per-node surprises. Mixed hardware is how you end up debugging why one worker behaves differently from the others.
 - **Confirm RAM and storage are actually included.** Surplus listings sometimes ship with the drive pulled (data-wipe policies) or minimal RAM. Read the spec line, not just the title.
 - **Look for multi-unit "lot" listings.** Buying three at once from a single refurbisher is usually cheaper per unit and guarantees they're identical.
 - **A "T" suffix CPU is a feature, not a downgrade** — more on that below.
-- **Cosmetic grade doesn't matter** for a lab. "Scratch and dent" units are cheaper and run identically.
+- **Cosmetic grade doesn't matter** Although my units were in great shape, small scratches and dings weren't really a detering factor.
 
 ### The nodes: HP EliteDesk 800 G2 Mini
 
@@ -71,24 +71,29 @@ I settled on the **HP EliteDesk 800 G2 Mini** — a "thin-client" desktop-mini m
 | RAM | **16GB** DDR4 (per node) | My floor, not a compromise. 16GB gives the control-plane node breathing room for etcd + the API server + controllers, and leaves the workers real capacity for pods. The 800 G2 Mini takes DDR4 SO-DIMMs and can go higher later if I need it. |
 | Storage | **240GB SSD** (per node) | An SSD is non-negotiable — Kubernetes and etcd do constant small writes, and a spinning disk or an SD card would choke on that. 240GB is ample for the OS, images, and lab workloads. 
 | Network | Single gigabit NIC (`eno1`) | One wired gigabit port per node is all a lab this size needs. No bonding, no dual-NIC complexity — just plug into the switch. |
-| Form factor | 1L Desktop Mini | Three of them take up almost no space, draw little power, and — eventually — fit neatly into a 3D-printed cluster case (see the Updates journal). |
+| Form factor | 1L Desktop Mini | Three of them take up almost no space, draw little power, and — eventually — fit neatly into a 3D-printed cluster case (see my Updates journal). |
 
 ![alt text](docs/images/specs.png)
 ### The rest of the kit
 
-- **Switch:** an unmanaged gigabit switch tying the three nodes together and up to the router. `<make/model — TBD>` (estimate: a basic 5-port unmanaged switch, ~$20–30).
+- **Switch:** a **TP-Link LS1008G (Litewave)** 8-port gigabit unmanaged switch tying the three nodes together and up to the router — plastic case, fanless, plug-and-play. Unmanaged is deliberate: no VLANs, no config, no switch in the troubleshooting path. Eight ports on a three-node lab leaves headroom for a fourth node or a test box without re-cabling.
+![alt text](docs/images/switch.png)
+- **Cables:** Cat6 UTP patch cables, 3 ft, pure copper (10-pack). Three feet is exactly right when the nodes sit shoulder-to-shoulder on a shelf — no coiled slack behind the stack. The spares came in handy once the 3D-printed rack changed the layout.
+
+![alt text](docs/images/cat6.jpg)
+
 - **Router:** an ISP-provided Wi-Fi router, gateway `192.168.86.1` — the nodes get internet from it but, by design, it does no Kubernetes routing (see the Calico/BGP note in the build).
 - **Management:** a ThinkPad X1 Carbon as the daily-driver control point, over SSH and `kubectl`. Not part of the cluster — just how I drive it.
 - **Later additions:** the 3D-printed cluster case, a new switch, and updated networking hardware came in a later evolution — documented as its own Updates entry.
 
-**Rough bill of materials (estimated):**
+**Bill of materials:**
 
-| Item | Qty | Est. unit | Est. total |
-|------|-----|-----------|------------|
 | HP EliteDesk 800 G2 Mini (i5-6500T, 16GB, 240GB SSD) | 3 | ~$85–95 | ~$275–285 |
-| Unmanaged gigabit switch | 1 | ~$20–30 | ~$20–30 |
-| Ethernet cables | 3 | ~$3–5 | ~$10–15 |
+| TP-Link LS1008G 8-port gigabit unmanaged switch | 1 | ~$20–30 | ~$20–30 |
+| Cat6 UTP patch cables, 3 ft (10-pack) | 1 pack | ~$10–15 | ~$10–15 |
 | **Total** | | | **~$250–375** |
+
+***Not counted above: the peripherals I already owned — a spare wireless keyboard and mouse, an extra monitor, and my own laptops. Every install needs a keyboard and screen at least once (Stage 1), but almost nobody buys those specifically for a lab.***
 
 For the price of a single mid-range GPU, the whole cluster — three real x86 nodes running full Kubernetes — was on my shelf. That's the point.
 
@@ -101,8 +106,7 @@ For the price of a single mid-range GPU, the whole cluster — three real x86 no
 | Worker 2 | `k8s-worker-02` | `192.168.86.103` | `eno1` | HP EliteDesk 800 G2 Mini — i5-6500T, 16GB, 240GB SSD |
 | Management | ThinkPad X1 Carbon | — | — | Daily driver; `kubectl` / SSH control point |
 
-The nodes connect through the switch to the ISP Wi-Fi router (gateway `192.168.86.1`).
-
+The nodes connect through the TP-Link LS1008G switch to the ISP Wi-Fi router (gateway `192.168.86.1`).
 
 ---
 
@@ -127,7 +131,7 @@ Ordered stages. Node prep runs on **all three nodes**; the control-plane steps r
 
 Ubuntu Server 22.04.5 on each node, installed from a USB flash drive boot disk, going through the step-by-step installer with a keyboard, monitor, and mouse connected directly to each machine in turn. No SSH yet at this point — that comes in Stage 2, once the OS is up and networked.
 
-The part that got me the first time was the installer's network screen. It splits the address and the subnet into separate fields, and it won't let you type a slash in the Address field — so the plain IP (`192.168.86.101`) goes in Address, and the CIDR (`192.168.86.0/24`) goes in Subnet. I fought that for a while before it clicked. The other thing that looks alarming but isn't: the interface reads "not connected" all through the install and only comes up on first boot. I nearly tore the whole thing down thinking I'd misconfigured the network, when in reality it was working fine and just hadn't applied yet. Gateway `192.168.86.1`, DNS `8.8.8.8,8.8.4.4`, interface `eno1`.
+The part that got me the first time was the installer's network screen. It splits the address and the subnet into separate fields, and it won't let you type a slash in the Address field, so the plain IP (`192.168.86.101`) goes in Address, and the CIDR (`192.168.86.0/24`) goes in Subnet. I fought that for a while before it clicked. The other thing that looks alarming but isn't: the interface reads "not connected" all through the install and only comes up on first boot. I nearly tore the whole thing down thinking I'd misconfigured the network, when in reality it was working fine and just hadn't applied yet. Gateway `192.168.86.1`, DNS `8.8.8.8,8.8.4.4`, interface `eno1`.
 
 ### Stage 2 — Management access (SSH keys)
 
@@ -169,7 +173,7 @@ sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
 The `swapoff -a` turns it off *now*; the `sed` line comments swap out of `/etc/fstab` so it stays off across reboots. Miss the second part, or have it get undone somehow, and swap silently comes back the next time the node restarts — the kubelet then refuses to start with a flat `running with swap on is not supported, please disable swap!` error. That's exactly what happened during the recovery documented in the Updates journal: after an extended planned outage, a reboot re-enabled swap on all three nodes, and it turned out to be the actual cluster-killer — nothing was reachable on the apiserver port not because of networking, but because the kubelet launching it wouldn't even start. Do both steps here, and don't assume "I did it once" means it's permanent.
 
-Kernel modules and sysctl:
+Kernel modules and sysctl in heredoc form:
 
 ```bash
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
@@ -226,7 +230,7 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 kubeadm token create --print-join-command > ~/join-command.txt
 ```
 
-I went with a `/24` pod CIDR rather than the more commonly-documented `/16`, and I stand by it: 256 pod addresses (~64 per node) is plenty for three nodes. The `/16` you see everywhere exists to plan for massive scale I'll never have here. Right-sizing was deliberate, not a shortcut. One thing that will make you second-guess yourself: right after `init`, the nodes report `NotReady`. That's correct — there's no CNI yet. Don't go chasing it.
+I went with a `/24` pod CIDR for 256 pod addresses [64 per node] is plenty for three nodes. (`/16` is a much more massive scale than I would need). One thing that will make you second-guess yourself: right after `init`, the nodes report `NotReady`. That's correct — there's no CNI yet. Don't go chasing it.
 
 ### Stage 5 — Install the Calico CNI (control plane only)
 
@@ -324,16 +328,12 @@ kubectl delete deployment nginx-test
 
 ---
 
-## Security & what's intentionally not published
+## Security / Privacy
 
-This is a security-focused repo, so it's worth stating plainly what is deliberately kept out of it:
-
-- **No secrets, ever.** Kubeconfigs, `admin.conf`, cluster certificates, private SSH keys, and the join token / cert hash are never committed. The `.gitignore` blocks them by pattern, but the discipline is the real safeguard — I don't `git add -f` them.
+There are a few security related elements that I wont make fully public for obvious reasons however there a few note owrthy mentions: 
 - **The private IPs (`192.168.86.x`) are RFC 1918 addresses.** They're only meaningful inside my LAN and aren't routable from the internet, so publishing them exposes nothing actionable.
 - **Hardware identifiers (MAC addresses) are omitted** — there's no reason to publish them.
 - **Version pinning is intentional.** The exact software versions are part of the story, but they're also a reason the cluster upgrade sits on the roadmap: running current versions is good hygiene, especially before anything gets exposed beyond the LAN.
-
-The point: the omissions are deliberate, not accidental.
 
 ---
 
@@ -373,9 +373,7 @@ A dated journal of the lab's evolution, grouped by year (newest first).
 - **2025-07 — CKA** — the administrator cert, earned on the earlier lab that led to this one.
 
 ---
-
-## Repository layout
-
+### Stay tuned, more to come...
 ```
 .
 ├── README.md                  # this file — build guide + journal
@@ -388,4 +386,6 @@ A dated journal of the lab's evolution, grouped by year (newest first).
 │   ├── metallb/               # MetalLB config
 │   └── apps/                  # lab workloads
 └── scripts/                   # helper scripts
+
 ```
+![alt text](docs/images/podlab.jpg)
