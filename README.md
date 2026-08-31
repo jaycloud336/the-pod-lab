@@ -10,7 +10,7 @@ It started with three HP EliteDesks and a switch on a shelf, no rack, no case, j
 
 ## What's in here
 
-- Step-by-step `kubeadm` build (v1.29.15, Calico, local-path)
+- Step-by-step `kubeadm` build (v1.35.8, Calico, local-path)
 - Hardware BOM — real cluster, used gear, ~$250–375
 - Updates journal — outages, recovery, evolution
 
@@ -115,10 +115,11 @@ The nodes connect through the TP-Link LS1008G switch to the ISP Wi-Fi router (ga
 | Layer | Choice | Notes |
 |-------|--------|-------|
 | OS | Ubuntu Server 22.04.5 LTS | Static IPs, all three nodes |
-| Bootstrap | `kubeadm` v1.29.15 | Full control-plane build |
-| Runtime | `containerd` | `SystemdCgroup = true` |
-| CNI | Calico (Tigera operator) v3.29.3 | BGP disabled, `/24` pod CIDR, VXLANCrossSubnet |
-| Storage | local-path-provisioner | Default StorageClass |
+| Bootstrap | `kubeadm` v1.35.8 | Full control-plane build |
+| Runtime | `containerd` 2.2.1 | `SystemdCgroup = true` |
+| CNI | Calico (Tigera operator) v3.32.1 | BGP disabled, `/24` pod CIDR, VXLANCrossSubnet |
+| MetalLB | v0.15.2 | L2 mode, address pool `192.168.86.200–210` |
+| Storage | local-path-provisioner v0.0.31 | Default StorageClass |
 | Access | SSH keys + merged kubeconfig | Managed from the ThinkPad |
 
 ---
@@ -200,10 +201,10 @@ Install the Kubernetes components:
 ```bash
 sudo apt install -y apt-transport-https ca-certificates curl gpg
 
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | \
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | \
   sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
-echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | \
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /' | \
   sudo tee /etc/apt/sources.list.d/kubernetes.list
 
 sudo apt update
@@ -237,7 +238,7 @@ I went with a `/24` pod CIDR for 256 pod addresses [64 per node] is plenty for t
 Rather than blindly applying the upstream manifest, I download it, edit it, and *then* apply — so I know exactly what I'm putting on the cluster. The edited file lives at `manifests/calico/custom-resources.yaml`.
 
 ```bash
-wget https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/custom-resources.yaml
+wget https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/custom-resources.yaml
 vi custom-resources.yaml
 ```
 
@@ -260,7 +261,7 @@ spec:
 ```
 
 ```bash
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/tigera-operator.yaml
 kubectl apply -f custom-resources.yaml
 kubectl get pods -n calico-system --watch
 ```
@@ -283,7 +284,7 @@ If too much time passes between `init` and joining the workers, the token expire
 ### Stage 7 — Storage
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.31/deploy/local-path-storage.yaml
 kubectl patch storageclass local-path \
   -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 kubectl get storageclass
@@ -342,9 +343,7 @@ There are a few security related elements that I wont make fully public for obvi
 Planned work, grouped by how near-term it is. Ticked off as it lands, with a matching entry added to the yearly Updates journal.
 
 ### Next up
-- [ ] **Cluster rebuild to a current version** — rather than grinding through sequential in-place upgrades from v1.29.15 across many minor releases, I'm planning a clean `kubeadm reset` and re-init at a current version. With no valuable workloads to preserve, a rebuild is faster and cleaner than the long chain of staged node-upgrade operations — a deliberate call about when a rebuild beats an upgrade.
-- [ ] **Monitoring** — Prometheus / Grafana via the **kube-prometheus-stack** Helm chart (with `metrics-server` as the minimal first step for `kubectl top` and HPA). The main thing standing between "simulates production" and something I'd more honestly call production-grade — and it doubles as the cert-expiry alerting the recovery taught me I need.
-- [ ] **MetalLB** — bare-metal `LoadBalancer` support (planned pool `192.168.86.200–210`). This closes the loop on the exact `LoadBalancer` limitation that pushed me toward bare metal in the first place.
+- [ ] **Monitoring** — probably a Prometheus/Grafana-based stack. The main thing standing between "simulates production" and something I'd more honestly call production-grade — and it doubles as the cert-expiry alerting the recovery taught me I need.
 
 ### Exploring / experimental
 - [ ] **Experiment with 1.36** — Kubernetes 1.36 ("Haru," the first release of 2026) is out, and it's tempting for security reasons — notably User Namespaces reaching GA, which is squarely relevant to the CKS material this lab is built around. I likely won't make it the cluster's main version right away, but I want to experiment with it, probably in a throwaway sandbox, before deciding whether it earns a place in the real rebuild.
@@ -352,7 +351,7 @@ Planned work, grouped by how near-term it is. Ticked off as it lands, with a mat
 
 ### Later
 - [ ] **ArgoCD / GitOps** — declarative, Git-driven delivery.
-- [ ] **Ingress + TLS** — an ingress controller with cert-manager.
+- [ ] **Ingress + TLS** — evaluate various ingress controller options with cert-manager.
 
 ---
 
@@ -361,6 +360,8 @@ Planned work, grouped by how near-term it is. Ticked off as it lands, with a mat
 A dated journal of the lab's evolution, grouped by year (newest first).
 
 ### [2026 →](docs/updates/2026.md)
+- **2026-08 — Cluster rebuild to 1.35** — reset all three nodes and re-initialized on v1.35.8, a deliberate nuke-and-pave instead of six sequential minor upgrades from 1.29. Calico, storage, and the worker joins rebuilt to match.
+- **2026-08 — MetalLB** — bare-metal LoadBalancer support in L2 mode (pool 192.168.86.200–210), closing the LoadBalancer limitation that motivated the whole bare-metal build.
 - **2026-08 — CKS** — passed the security specialist exam, alongside the recovery below.
 - **2026-08 — The 3D-printed cluster case** — gave the three nodes a proper 5U rack.
 - **2026-08 — Recovery from an extended outage** — diagnosed a four-layer cascading failure bottom-up and hardened against recurrence. The best troubleshooting story the lab has produced.
