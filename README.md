@@ -348,10 +348,11 @@ Planned work, grouped by how near-term it is. Ticked off as it lands, with a mat
 ### Exploring / experimental
 - [ ] **Experiment with 1.36** — Kubernetes 1.36 ("Haru," the first release of 2026) is out, and it's tempting for security reasons — notably User Namespaces reaching GA, which is squarely relevant to the CKS material this lab is built around. I likely won't make it the cluster's main version right away, but I want to experiment with it, probably in a throwaway sandbox, before deciding whether it earns a place in the real rebuild.
 - [ ] **Talos exploration** — evaluate Talos Linux as an immutable, API-driven OS on a future rebuild.
+- [ ] **MetalLB L2 vs L3 (BGP) benchmark**: hold one ingress controller fixed and change only the MetalLB mode. BGP mode needs its own peer, since the home router stays out of Kubernetes routing.
 
 ### Later
 - [ ] **ArgoCD / GitOps** — declarative, Git-driven delivery.
-- [ ] **Ingress + TLS** — evaluate various ingress controller options with cert-manager.
+- [ ] **Ingress + TLS**: choose a controller (see the 2026-10 ingress benchmark in Updates) and add TLS with cert-manager.
 
 ---
 
@@ -360,6 +361,8 @@ Planned work, grouped by how near-term it is. Ticked off as it lands, with a mat
 A dated journal of the lab's evolution, grouped by year (newest first).
 
 ### [2026 →](docs/updates/2026.md)
+- **2026-10: UPS added**: an APC BN450M battery backup now bridges short unplugs and brief outages, so the rack can be relocated without a cold-boot recovery.
+- **2026-10: Ingress controller benchmark**: Traefik vs ingress-nginx vs Kong across burst, load, soak, and stress k6 profiles. Reliability tied; Kong led on this cluster.
 - **2026-08 — Cluster rebuild to 1.35** — reset all three nodes and re-initialized on v1.35.8, a deliberate nuke-and-pave instead of six sequential minor upgrades from 1.29. Calico, storage, and the worker joins rebuilt to match.
 - **2026-08 — MetalLB** — bare-metal LoadBalancer support in L2 mode (pool 192.168.86.200–210), closing the LoadBalancer limitation that motivated the whole bare-metal build.
 - **2026-08 — CKS** — passed the security specialist exam, alongside the recovery below.
