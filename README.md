@@ -1,4 +1,5 @@
-![alt text](docs/images/home-lab.png)
+<img src="docs/images/home-lab.png" alt="The Pod Lab" width="200">
+
 # The "Pod Lab"
 ### *The evolution of my home lab*
 
